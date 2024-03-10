@@ -20,12 +20,12 @@ def gaussian_blur(image_path, radius=2):
     except Exception as e:
         print("An error occurred:", e)
 
-def draw_circles(image, luminance_scale=10, spacing=10):
+def draw_circles(image, luminance_scale=10, spacing=10,color=(0,0,0)):
     try:
         rgb_image = image.convert('RGB')
         width, height = rgb_image.size
         # Create a new black canvas with the same size as the original image
-        canvas = Image.new("RGB", (width, height), color=(0,0,0))
+        canvas = Image.new("RGB", (width, height), color)
         draw = ImageDraw.Draw(canvas)
 
         for y in range(0, height, spacing):
@@ -41,17 +41,20 @@ def draw_circles(image, luminance_scale=10, spacing=10):
 
 if __name__ == "__main__":
     timer_start()
-    image_path = r'C:\Users\chara\PycharmProjects\ImagetoPolkaDots\venv\Resources\input_4.png'
+    # file prameters
+    image_path = r'C:\Users\chara\PycharmProjects\ImagetoPolkaDots\venv\Resources\love.jpg'
     output_path= r'C:\Users\chara\PycharmProjects\ImagetoPolkaDots\venv\Output\output.jpeg'
     #parameters
     luminance_scale=35 # best values b/w 20-50
     spacing=10  # best values b/w 8-15
-    blur_radius = 8 # best values b/w 5-10
+    blur_radius = 3 # best values b/w 5-10 and make it 0 to keep it original
+    color = (0, 0, 0)#for white or any other colour change r, g, & b values here
 
-    blurred_image = gaussian_blur(image_path, 8)
+
+    blurred_image = gaussian_blur(image_path, blur_radius)
 
     if blurred_image:
-        f=draw_circles(blurred_image,luminance_scale,spacing)#default values are luminance_scale: 10, spacing: 10
+        f=draw_circles(blurred_image,luminance_scale,spacing,color)#default values are luminance_scale: 10, spacing: 10
         f.save(output_path)
         f.show()
         print(f"Image with drawn circles saved to: {output_path}")
