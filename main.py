@@ -1,30 +1,22 @@
+from flask import Flask, request, send_file, jsonify
 from PIL import Image, ImageFilter, ImageDraw
 import time
+import os
+from concurrent.futures import ThreadPoolExecutor
 
-def timer_start():
-    global start_time
-    start_time = time.time()
+app = Flask(__name__)
 
-def timer_stop():
-    if 'start_time' in globals():
-        elapsed_time = time.time() - start_time
-        print(f"Elapsed time: {elapsed_time:.2f} seconds")
-    else:
-        print("Timer was not started.")
-
-def gaussian_blur(image_path, radius=2):
+def gaussian_blur(image, radius=2):
     try:
-        image = Image.open(image_path)
         blurred_image = image.filter(ImageFilter.GaussianBlur(radius))
         return blurred_image
     except Exception as e:
-        print("An error occurred:", e)
+        print("An error occurred in Gaussian blur:", e)
 
-def draw_circles(image, luminance_scale=10, spacing=10,color=(0,0,0)):
+def draw_circles(image, luminance_scale=10, spacing=10, color=(0, 0, 0)):
     try:
         rgb_image = image.convert('RGB')
         width, height = rgb_image.size
-        # Create a new black canvas with the same size as the original image
         canvas = Image.new("RGB", (width, height), color)
         draw = ImageDraw.Draw(canvas)
 
@@ -33,29 +25,56 @@ def draw_circles(image, luminance_scale=10, spacing=10,color=(0,0,0)):
                 r, g, b = rgb_image.getpixel((x, y))
                 luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
                 luminance /= luminance_scale
-                color = (r, g, b)
-                draw.ellipse((x-luminance, y-luminance, x+luminance, y+luminance), fill=color)
+                draw.ellipse((x - luminance, y - luminance, x + luminance, y + luminance), fill=(r, g, b))
+        return canvas
     except Exception as e:
-        print("An error occurred:", e)
-    return canvas
+        print("An error occurred in drawing circles:", e)
 
-if __name__ == "__main__":
-    timer_start()
-    # file prameters
-    image_path = r'C:\Users\chara\PycharmProjects\ImagetoPolkaDots\venv\Resources\love.jpg'
-    output_path= r'C:\Users\chara\PycharmProjects\ImagetoPolkaDots\venv\Output\output.jpeg'
-    #parameters
-    luminance_scale=35 # best values b/w 20-50
-    spacing=10  # best values b/w 8-15
-    blur_radius = 3 # best values b/w 5-10 and make it 0 to keep it original
-    color = (0, 0, 0)#for white or any other colour change r, g, & b values here
+@app.route('/process-image', methods=['POST'])
+def process_image():
+    try:
+        # Receive image file and parameters from request
+        image_file = request.files.get('image')
+        luminance_scale = int(request.form.get('luminance_scale', 35))
+        spacing = int(request.form.get('spacing', 10))
+        blur_radius = int(request.form.get('blur_radius', 3))
+        color = tuple(map(int, request.form.get('color', '0,0,0').split(',')))
+
+        if not image_file:
+            return jsonify({"error": "No image provided"}), 400
+
+        # Open the image
+        image = Image.open(image_file)
+
+        # Process the image in a multithreaded way
+        with ThreadPoolExecutor() as executor:
+            future_blur = executor.submit(gaussian_blur, image, blur_radius)
+            blurred_image = future_blur.result()
+
+            if blurred_image:
+                future_draw = executor.submit(draw_circles, blurred_image, luminance_scale, spacing, color)
+                final_image = future_draw.result()
+
+                # Save the processed image temporarily
+                output_path = 'Output.jpg'
+                final_image.save(output_path)
+
+                return send_file(output_path, mimetype='image/jpeg')
+        return jsonify({"error": "Image processing failed"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
 
-    blurred_image = gaussian_blur(image_path, blur_radius)
-
-    if blurred_image:
-        f=draw_circles(blurred_image,luminance_scale,spacing,color)#default values are luminance_scale: 10, spacing: 10
-        f.save(output_path)
-        f.show()
-        print(f"Image with drawn circles saved to: {output_path}")
-    timer_stop()
+'''
+Import this to post man to test this out 
+curl -X POST http://127.0.0.1:5000/process-image `
+-F "image=@E:\SNEH1408.jpeg" `
+-F "luminance_scale=35" `
+-F "spacing=10" `
+-F "blur_radius=3" `
+-F "color=0,0,0" `
+-OutFile processed_image.jpg
+'''
