@@ -39,12 +39,18 @@ def process_image():
         spacing = int(request.form.get('spacing', 10))
         blur_radius = int(request.form.get('blur_radius', 3))
         color = tuple(map(int, request.form.get('color', '0,0,0').split(',')))
+        scale_factor = float(request.form.get('scale_factor', 1.0))  # Add scale factor
 
         if not image_file:
             return jsonify({"error": "No image provided"}), 400
 
         # Open the image
         image = Image.open(image_file)
+
+        # Scale the image if scale_factor is different from 1
+        if scale_factor != 1.0:
+            new_size = (int(image.width * scale_factor), int(image.height * scale_factor))
+            image = image.resize(new_size, Image.ANTIALIAS)
 
         # Process the image in a multithreaded way
         with ThreadPoolExecutor() as executor:
@@ -66,15 +72,3 @@ def process_image():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-'''
-Import this to post man to test this out 
-curl -X POST http://127.0.0.1:5000/process-image `
--F "image=@E:\SNEH1408.jpeg" `
--F "luminance_scale=35" `
--F "spacing=10" `
--F "blur_radius=3" `
--F "color=0,0,0" `
--OutFile processed_image.jpg
-'''
