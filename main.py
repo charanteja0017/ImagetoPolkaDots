@@ -1,6 +1,11 @@
 from flask import Flask, request, send_file, jsonify
 from PIL import Image, ImageFilter, ImageDraw
 from concurrent.futures import ThreadPoolExecutor
+from flask import Flask, request, jsonify, send_file
+import cv2
+import numpy as np
+from io import BytesIO
+from PIL import Image
 
 app = Flask(__name__)
 
@@ -58,6 +63,42 @@ def process_image():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+def edge_detection(image, low_threshold=100, high_threshold=200):
+    """Perform Canny edge detection."""
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray_image, low_threshold, high_threshold)
+    return edges
+
+
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    """API endpoint for uploading an image and performing edge detection."""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    try:
+        # Read the image
+        image = Image.open(file.stream)
+        image = np.array(image)
+
+        # Perform edge detection
+        edges = edge_detection(image)
+
+        # Convert the edge-detected image to a PIL image and return as a response
+        pil_image = Image.fromarray(edges)
+        img_io = BytesIO()
+        pil_image.save(img_io, 'PNG')
+        img_io.seek(0)
+
+        return send_file(img_io, mimetype='image/png')
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
