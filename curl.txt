@@ -1,0 +1,8 @@
+curl --location 'http://127.0.0.1:5000/process-image' \
+--form 'image=@"/C:/Users/chara/Desktop/a3Size.png"' \
+--form 'luminance_scale="17"' \
+--form 'spacing="40"' \
+--form 'blur_radius="6"' \
+--form 'color="0,0,0"' \
+--form 'scale_factor="1"' \
+--form '-i=""'
